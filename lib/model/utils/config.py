@@ -159,7 +159,7 @@ __C.TRAIN.USE_ALL_GT = True
 __C.TRAIN.BN_TRAIN = False
 
 # Crop images that have too small or too large aspect ratio
-__C.TRAIN.ASPECT_CROPPING = False
+__C.TRAIN.ASPECT_CROPPING = True
 #
 # Testing options
 #
@@ -223,6 +223,19 @@ __C.RESNET.MAX_POOL = False
 # Range: 0 (none) to 3 (all)
 __C.RESNET.FIXED_BLOCKS = 1
 
+__C.DETNET = edict()
+
+# Option to set if max-pooling is appended after crop_and_resize.
+# if true, the region will be resized to a square of 2xPOOLING_SIZE,
+# then 2x2 max-pooling is applied; otherwise the region will be directly
+# resized to a square of POOLING_SIZE
+__C.DETNET.MAX_POOL = False
+
+# Number of fixed blocks during training, by default the first of all 4 blocks is fixed
+# Range: 0 (none) to 3 (all)
+__C.DETNET.FIXED_BLOCKS = 1
+
+
 #
 # MobileNet options
 #
@@ -256,7 +269,9 @@ __C.DEDUP_BOXES = 1. / 16.
 # Pixel mean values (BGR order) as a (1, 1, 3) array
 # We use the same pixel mean for all networks even though it's not exactly what
 # they were trained with
-__C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+# __C.PIXEL_MEANS = np.array([[[102.9801, 115.9465, 122.7717]]])
+__C.PIXEL_MEANS = np.array([[[0.485, 0.456, 0.406]]])
+__C.PIXEL_STDS = np.array([[[0.229, 0.224, 0.225]]])
 
 # For reproducibility
 __C.RNG_SEED = 3

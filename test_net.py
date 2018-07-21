@@ -29,7 +29,7 @@ from model.rpn.bbox_transform import clip_boxes
 from model.nms.nms_wrapper import nms
 from model.rpn.bbox_transform import bbox_transform_inv
 from model.utils.net_utils import vis_detections
-from model.fpn.resnet import resnet
+from model.fpn.detnet_backbone import detnet
 
 import pdb
 
@@ -52,8 +52,8 @@ def parse_args():
                         help='optional config file',
                         default='cfgs/vgg16.yml', type=str)
     parser.add_argument('--net', dest='net',
-                        help='vgg16, res50, res101, res152',
-                        default='res101', type=str)
+                        help='detnet59, etc',
+                        default='detnet59', type=str)
     parser.add_argument('--set', dest='set_cfgs',
                         help='set config keys', default=None,
                         nargs=argparse.REMAINDER)
@@ -110,11 +110,13 @@ if __name__ == '__main__':
     if args.dataset == "pascal_voc":
         args.imdb_name = "voc_2007_trainval"
         args.imdbval_name = "voc_2007_test"
-        args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]']
+        args.set_cfgs = ['FPN_ANCHOR_SCALES', '[32, 64, 128, 256, 512]', 'FPN_FEAT_STRIDES', '[4, 8, 16, 16, 16]',
+                         'MAX_NUM_GT_BOXES', '20']
     elif args.dataset == "pascal_voc_0712":
         args.imdb_name = "voc_0712_trainval"
         args.imdbval_name = "voc_0712_test"
-        args.set_cfgs = ['ANCHOR_SCALES', '[8, 16, 32]', 'ANCHOR_RATIOS', '[0.5,1,2]']
+        args.set_cfgs = ['FPN_ANCHOR_SCALES', '[32, 64, 128, 256, 512]', 'FPN_FEAT_STRIDES', '[4, 8, 16, 16, 16]',
+                         'MAX_NUM_GT_BOXES', '20']
     elif args.dataset == "coco":
         args.imdb_name = "coco_2014_train+coco_2014_valminusminival"
         args.imdbval_name = "coco_2014_minival"
@@ -156,14 +158,8 @@ if __name__ == '__main__':
                              'fpn_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
 
     # initilize the network here.
-    if args.net == 'vgg16':
-        fpn = vgg16(imdb.classes, pretrained=False, class_agnostic=args.class_agnostic)
-    elif args.net == 'res101':
-        fpn = resnet(imdb.classes, 101, pretrained=False, class_agnostic=args.class_agnostic)
-    elif args.net == 'res50':
-        fpn = resnet(imdb.classes, 50, pretrained=False, class_agnostic=args.class_agnostic)
-    elif args.net == 'res152':
-        fpn = resnet(imdb.classes, 152, pretrained=False, class_agnostic=args.class_agnostic)
+    if args.net == 'detnet59':
+        fpn = detnet(imdb.classes, 59, pretrained=False, class_agnostic=args.class_agnostic)
     else:
         print("network is not defined")
         pdb.set_trace()

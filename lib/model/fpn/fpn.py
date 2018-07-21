@@ -29,7 +29,6 @@ class _FPN(nn.Module):
         self.RCNN_loss_cls = 0
         self.RCNN_loss_bbox = 0
 
-        self.maxpool2d = nn.MaxPool2d(1, stride=2)
         # define rpn
         self.RCNN_rpn = _RPN_FPN(self.dout_base_model)
         self.RCNN_proposal_target = _ProposalTargetLayer(self.n_classes)
@@ -64,12 +63,14 @@ class _FPN(nn.Module):
                 m.bias.data.fill_(0)
 
         normal_init(self.RCNN_toplayer, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RCNN_smooth1, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RCNN_smooth2, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        normal_init(self.RCNN_smooth3, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        # normal_init(self.RCNN_smooth1, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        # normal_init(self.RCNN_smooth2, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        # normal_init(self.RCNN_smooth3, 0, 0.01, cfg.TRAIN.TRUNCATED)
         normal_init(self.RCNN_latlayer1, 0, 0.01, cfg.TRAIN.TRUNCATED)
         normal_init(self.RCNN_latlayer2, 0, 0.01, cfg.TRAIN.TRUNCATED)
         normal_init(self.RCNN_latlayer3, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RCNN_latlayer4, 0, 0.01, cfg.TRAIN.TRUNCATED)
+
 
         normal_init(self.RCNN_rpn.RPN_Conv, 0, 0.01, cfg.TRAIN.TRUNCATED)
         normal_init(self.RCNN_rpn.RPN_cls_score, 0, 0.01, cfg.TRAIN.TRUNCATED)
@@ -174,16 +175,16 @@ class _FPN(nn.Module):
         c3 = self.RCNN_layer2(c2)
         c4 = self.RCNN_layer3(c3)
         c5 = self.RCNN_layer4(c4)
-        # Top-down
-        p5 = self.RCNN_toplayer(c5)
-        p4 = self._upsample_add(p5, self.RCNN_latlayer1(c4))
-        p4 = self.RCNN_smooth1(p4)
-        p3 = self._upsample_add(p4, self.RCNN_latlayer2(c3))
-        p3 = self.RCNN_smooth2(p3)
-        p2 = self._upsample_add(p3, self.RCNN_latlayer3(c2))
-        p2 = self.RCNN_smooth3(p2)
+        c6 = self.RCNN_layer5(c5)
 
-        p6 = self.maxpool2d(p5)
+        # Top-down
+        p6 = self.RCNN_toplayer(c6)
+        p5 = self.RCNN_latlayer1(c5) + p6
+        p4 = self.RCNN_latlayer2(c4) + p5
+        p3 = self._upsample_add(p4, self.RCNN_latlayer3(c3))
+        p3 = self.RCNN_smooth1(p3)
+        p2 = self._upsample_add(p3, self.RCNN_latlayer4(c2))
+        p2 = self.RCNN_smooth2(p2)
 
         rpn_feature_maps = [p2, p3, p4, p5, p6]
         mrcnn_feature_maps = [p2, p3, p4, p5]

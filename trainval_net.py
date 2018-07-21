@@ -33,7 +33,7 @@ from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
 from model.utils.net_utils import weights_normal_init, save_net, load_net, \
     adjust_learning_rate, save_checkpoint, clip_gradient
 import cv2
-from model.fpn.resnet import resnet
+from model.fpn.detnet_backbone import detnet
 from tensorboardX import SummaryWriter
 from model.utils.summary import *
 import pdb
@@ -53,8 +53,8 @@ def parse_args():
                         help='training dataset',
                         default='pascal_voc', type=str)
     parser.add_argument('--net', dest='net',
-                        help='res101, res152, etc',
-                        default='res101', type=str)
+                        help='detnet59, etc',
+                        default='detnet59', type=str)
     parser.add_argument('--start_epoch', dest='start_epoch',
                         help='starting epoch',
                         default=1, type=int)
@@ -124,7 +124,7 @@ def parse_args():
     # log and diaplay
     parser.add_argument('--use_tfboard', dest='use_tfboard',
                         help='whether use tensorflow tensorboard',
-                        default=False, type=bool)
+                        default=True, type=bool)
 
     args = parser.parse_args()
     return args
@@ -184,12 +184,12 @@ if __name__ == '__main__':
     if args.dataset == "pascal_voc":
         args.imdb_name = "voc_2007_trainval"
         args.imdbval_name = "voc_2007_test"
-        args.set_cfgs = ['FPN_ANCHOR_SCALES', '[32, 64, 128, 256, 512]', 'FPN_FEAT_STRIDES', '[4, 8, 16, 32, 64]',
+        args.set_cfgs = ['FPN_ANCHOR_SCALES', '[32, 64, 128, 256, 512]', 'FPN_FEAT_STRIDES', '[4, 8, 16, 16, 16]',
                          'MAX_NUM_GT_BOXES', '20']
     elif args.dataset == "pascal_voc_0712":
         args.imdb_name = "voc_0712_trainval"
         args.imdbval_name = "voc_0712_test"
-        args.set_cfgs = ['FPN_ANCHOR_SCALES', '[32, 64, 128, 256, 512]', 'FPN_FEAT_STRIDES', '[4, 8, 16, 32, 64]',
+        args.set_cfgs = ['FPN_ANCHOR_SCALES', '[32, 64, 128, 256, 512]', 'FPN_FEAT_STRIDES', '[4, 8, 16, 16, 16]',
                          'MAX_NUM_GT_BOXES', '20']
     elif args.dataset == "coco":
         args.imdb_name = "coco_2014_train+coco_2014_valminusminival"
@@ -285,12 +285,8 @@ if __name__ == '__main__':
         cfg.CUDA = True
 
     # initilize the network here.
-    if args.net == 'res101':
-        FPN = resnet(imdb.classes, 101, pretrained=True, class_agnostic=args.class_agnostic)
-    elif args.net == 'res50':
-        FPN = resnet(imdb.classes, 50, pretrained=True, class_agnostic=args.class_agnostic)
-    elif args.net == 'res152':
-        FPN = resnet(imdb.classes, 152, pretrained=True, class_agnostic=args.class_agnostic)
+    if args.net == 'detnet59':
+        FPN = detnet(imdb.classes, 59, pretrained=True, class_agnostic=args.class_agnostic)
     else:
         print("network is not defined")
         pdb.set_trace()
