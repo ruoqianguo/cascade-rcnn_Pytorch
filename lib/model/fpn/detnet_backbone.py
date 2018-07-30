@@ -313,7 +313,7 @@ class detnet(_FPN):
         self.RCNN_layer5 = nn.Sequential(detnet.layer5)  # add one layer, for c6
 
         # Top layer
-        self.RCNN_toplayer = nn.Conv2d(1024, 256, kernel_size=1, stride=1, padding=0)  # reduce channel，for p6
+        self.RCNN_toplayer = nn.Conv2d(1024, 256, kernel_size=1, stride=1, padding=0)  # reduce channel, for p6
 
         # Smooth layers
         self.RCNN_smooth1 = nn.Conv2d(256, 256, kernel_size=3, stride=1, padding=1)  # for p3

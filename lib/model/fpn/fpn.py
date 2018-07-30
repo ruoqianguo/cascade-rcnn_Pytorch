@@ -8,7 +8,7 @@ import torchvision.models as models
 from torch.autograd import Variable
 import numpy as np
 import torchvision.utils as vutils
-from model.utils.config import cfg    # 这个地方不能加lib.否则cfg又问题
+from model.utils.config import cfg    # rm 'lib.', or cfg will create a new copy
 from model.rpn.rpn_fpn import _RPN_FPN
 from model.roi_pooling.modules.roi_pool import _RoIPooling
 from model.roi_crop.modules.roi_crop import _RoICrop
