@@ -49,7 +49,7 @@ cd DetNet_Pytorch && mkdir data
 ### prerequisites
 
 - Python 2.7 or 3.6
-- Pytorch 0.2.0 or higher
+- Pytorch 0.2.0 or higher（not support pytorch version >=0.4.0）
 - CUDA 8.0 or higher
 - tensorboardX
 
