@@ -6,6 +6,10 @@ Firstly, I spent about one week training detnet59 on the ImageNet dataset .The c
 
 Based on [**FPN_Pytorch**](https://github.com/guoruoqian/FPN_Pytorch/), i change FPN101 to detnet59.
 
+**Update**
+
+**Adding soft_nms.**  **Without requiring any re-training of existing models.** You only need to use soft_nms during testing to bring performance improvements. 
+
 ## Benchmarking
 
 I benchmark this code thoroughly on pascal voc2007 and 07+12. Below are the results:
@@ -27,10 +31,12 @@ I benchmark this code thoroughly on pascal voc2007 and 07+12. Below are the resu
 
 2). PASCAL VOC 07+12 (Train/Test: 07+12trainval/07test, scale=600, ROI Align)
 
-| model      | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | mAP  |
-| ---------- | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- |
-| ResNet-101 | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 3.96hr      | 9011MB     | 80.5 |
-| DetNet59   | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 2.33hr      | 8015MB     | 80.7 |
+| model                                       | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | mAP  |
+| ------------------------------------------- | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- |
+| ResNet-101                                  | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 3.96hr      | 9011MB     | 80.5 |
+| DetNet59                                    | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 2.33hr      | 8015MB     | 80.7 |
+| ResNet-101(**using soft_nms when testing**) | 1 GTX 1080 (Ti) | \          | \    | \        | \         | \           | \          | 81.2 |
+| DetNet59(**using soft_nms when testing**)   | 1 GTX 1080 (Ti) | \          | \    | \        | \         | \           | \          | 81.6 |
 
 ## Preparation
 
@@ -105,6 +111,12 @@ test voc2007:
 
 ```shell
 CUDA_VISIBLE_DEVICES=3 python3 test_net.py exp_name --dataset pascal_voc --net detnet59 --checksession 1 --checkepoch 7 --checkpoint 5010 --cuda --load_dir weights
+```
+
+**using soft_nms when testing**:
+
+```shell
+CUDA_VISIBLE_DEVICES=3 python3 test_net.py exp_name --dataset pascal_voc --net detnet59 --checksession 1 --checkepoch 7 --checkpoint 5010 --cuda --load_dir weights --soft_nms
 ```
 
 Before training voc07+12, you can must set ASPECT_CROPPING in detnet59.yml False, or you will encounter some error during the training. 
