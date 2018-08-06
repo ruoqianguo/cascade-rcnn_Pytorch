@@ -24,19 +24,19 @@ I benchmark this code thoroughly on pascal voc2007 and 07+12. Below are the resu
 
 1). PASCAL VOC 2007 (Train/Test: 07trainval/07test, scale=600, ROI Align)
 
-| model      | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | mAP  |
-| ---------- | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- |
-| ResNet-101 | 1 GTX 1080 (Ti) | 2          | 1e-3 | 10       | 12        | 1.44hr      | 6137MB     | 75.7 |
-| DetNet59   | 1 GTX 1080 (Ti) | 2          | 1e-3 | 10       | 12        | 1.07hr      | 5412MB     | 75.9 |
+| model（FPN）                                                 | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | mAP  |
+| ------------------------------------------------------------ | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- |
+| ResNet-101                                                   | 1 GTX 1080 (Ti) | 2          | 1e-3 | 10       | 12        | 1.44hr      | 6137MB     | 75.7 |
+| [DetNet59](https://www.dropbox.com/home/DetNet/PASCAL%20VOC%202007?preview=fpn_1_8_5010.pth) | 1 GTX 1080 (Ti) | 2          | 1e-3 | 10       | 12        | 1.07hr      | 5412MB     | 75.9 |
 
 2). PASCAL VOC 07+12 (Train/Test: 07+12trainval/07test, scale=600, ROI Align)
 
-| model                                       | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | mAP  |
-| ------------------------------------------- | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- |
-| ResNet-101                                  | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 3.96hr      | 9011MB     | 80.5 |
-| DetNet59                                    | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 2.33hr      | 8015MB     | 80.7 |
-| ResNet-101(**using soft_nms when testing**) | 1 GTX 1080 (Ti) | \          | \    | \        | \         | \           | \          | 81.2 |
-| DetNet59(**using soft_nms when testing**)   | 1 GTX 1080 (Ti) | \          | \    | \        | \         | \           | \          | 81.6 |
+| model（FPN）                                                 | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | mAP  |
+| ------------------------------------------------------------ | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- |
+| ResNet-101                                                   | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 3.96hr      | 9011MB     | 80.5 |
+| [DetNet59](https://www.dropbox.com/home/DetNet/PASCAL%20VOC%2007%2B12?preview=fpn_1_7_33101.pth) | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 2.33hr      | 8015MB     | 80.7 |
+| ResNet-101(**using soft_nms when testing**)                  | 1 GTX 1080 (Ti) | \          | \    | \        | \         | \           | \          | 81.2 |
+| DetNet59(**using soft_nms when testing**)                    | 1 GTX 1080 (Ti) | \          | \    | \        | \         | \           | \          | 81.6 |
 
 ## Preparation
 
