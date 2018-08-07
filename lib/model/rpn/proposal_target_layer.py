@@ -30,7 +30,7 @@ class _ProposalTargetLayer(nn.Module):
         self.BBOX_NORMALIZE_STDS = torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_STDS)
         self.BBOX_INSIDE_WEIGHTS = torch.FloatTensor(cfg.TRAIN.BBOX_INSIDE_WEIGHTS)
 
-    def forward(self, all_rois, gt_boxes, num_boxes):
+    def forward(self, all_rois, gt_boxes, num_boxes, stage=1):
 
         self.BBOX_NORMALIZE_MEANS = self.BBOX_NORMALIZE_MEANS.type_as(gt_boxes)
         self.BBOX_NORMALIZE_STDS = self.BBOX_NORMALIZE_STDS.type_as(gt_boxes)
@@ -49,7 +49,7 @@ class _ProposalTargetLayer(nn.Module):
 
         labels, rois, gt_assign, bbox_targets, bbox_inside_weights = self._sample_rois_pytorch(
             all_rois, gt_boxes, fg_rois_per_image,
-            rois_per_image, self._num_classes)
+            rois_per_image, self._num_classes, stage=stage)
 
         bbox_outside_weights = (bbox_inside_weights > 0).float()
 
@@ -113,7 +113,7 @@ class _ProposalTargetLayer(nn.Module):
         return targets
 
 
-    def _sample_rois_pytorch(self, all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_classes):
+    def _sample_rois_pytorch(self, all_rois, gt_boxes, fg_rois_per_image, rois_per_image, num_classes, stage=1):
         """Generate a random sample of RoIs comprising foreground and background
         examples.
         """
@@ -139,14 +139,28 @@ class _ProposalTargetLayer(nn.Module):
         gt_rois_batch = all_rois.new(batch_size, rois_per_image, 5).zero_()
         # Guard against the case when an image has fewer than max_fg_rois_per_image
         # foreground RoIs
+        if stage == 1:
+            fg_thresh = cfg.TRAIN.FG_THRESH
+            bg_thresh_hi = cfg.TRAIN.BG_THRESH_HI
+            bg_thresh_lo = cfg.TRAIN.BG_THRESH_LO
+        elif stage == 2:
+            fg_thresh = cfg.TRAIN.FG_THRESH_2ND
+            bg_thresh_hi = cfg.TRAIN.FG_THRESH_2ND
+            bg_thresh_lo = cfg.TRAIN.BG_THRESH_LO
+        elif stage == 3:
+            fg_thresh = cfg.TRAIN.FG_THRESH_3RD
+            bg_thresh_hi = cfg.TRAIN.FG_THRESH_3RD
+            bg_thresh_lo = cfg.TRAIN.BG_THRESH_LO
+        else:
+            raise RuntimeError('stage must be in [1, 2, 3]')
         for i in range(batch_size):
 
-            fg_inds = torch.nonzero(max_overlaps[i] >= cfg.TRAIN.FG_THRESH).view(-1)
+            fg_inds = torch.nonzero(max_overlaps[i] >= fg_thresh).view(-1)
             fg_num_rois = fg_inds.numel()
 
             # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
-            bg_inds = torch.nonzero((max_overlaps[i] < cfg.TRAIN.BG_THRESH_HI) &
-                                    (max_overlaps[i] >= cfg.TRAIN.BG_THRESH_LO)).view(-1)
+            bg_inds = torch.nonzero((max_overlaps[i] < bg_thresh_hi) &
+                                    (max_overlaps[i] >= bg_thresh_lo)).view(-1)
             bg_num_rois = bg_inds.numel()
 
             if fg_num_rois > 0 and bg_num_rois > 0:

@@ -236,7 +236,7 @@ if __name__ == '__main__':
 
         det_tic = time.time()
         rois, cls_prob, bbox_pred, \
-        _, _, _, _, _ = fpn(im_data, im_info, gt_boxes, num_boxes)
+        _, _, _, _, _, _, _, _, _ = fpn(im_data, im_info, gt_boxes, num_boxes)
 
         scores = cls_prob.data
         boxes = rois.data[:, :, 1:5]
@@ -325,7 +325,14 @@ if __name__ == '__main__':
         pickle.dump(all_boxes, f, pickle.HIGHEST_PROTOCOL)
 
     print('Evaluating detections')
-    imdb.evaluate_detections(all_boxes, output_dir)
+    results = []
+    overthresh = [0.5, 0.6, 0.7, 0.8, 0.9]
+    for t in overthresh:
+        mAP = imdb.evaluate_detections(all_boxes, output_dir, t)
+        results.append(mAP)
+    print('Overthresh: ', overthresh)
+    print('mAPs: ', results)
+    print('mean mAP: ', sum(results) / len(results))
 
     end = time.time()
     print("test time: %0.4fs" % (end - start))

@@ -43,6 +43,7 @@ try:
 except NameError:
     xrange = range  # Python 3
 
+
 def parse_args():
     """
     Parse input arguments
@@ -142,7 +143,7 @@ class sampler(Sampler):
             self.leftover_flag = True
 
     def __iter__(self):
-        rand_num = torch.randperm(self.num_per_batch).view(-1,1) * self.batch_size
+        rand_num = torch.randperm(self.num_per_batch).view(-1, 1) * self.batch_size
         # rand_num = torch.arange(self.num_per_batch).long().view(-1, 1) * self.batch_size
         self.rand_num = rand_num.expand(self.num_per_batch, self.batch_size) + self.range
 
@@ -218,7 +219,6 @@ if __name__ == '__main__':
 
     # print('trainval', cfg.POOLING_MODE)
     # print('fpn', get_cfg().POOLING_MODE)
-
 
     print('Using config:')
     pprint.pprint(cfg)
@@ -358,7 +358,7 @@ if __name__ == '__main__':
             FPN.zero_grad()
             # try:
             _, _, _, rpn_loss_cls, rpn_loss_box, \
-            RCNN_loss_cls, RCNN_loss_bbox, \
+            RCNN_loss_cls, RCNN_loss_bbox, RCNN_loss_cls_2nd, RCNN_loss_bbox_2nd, RCNN_loss_cls_3rd, RCNN_loss_bbox_3rd, \
             roi_labels = FPN(im_data, im_info, gt_boxes, num_boxes)
             # except:
             #     print(data[4], gt_boxes, num_boxes)
@@ -369,7 +369,9 @@ if __name__ == '__main__':
             #     print(bbox)
 
             loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
-                   + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
+                   + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean() \
+                   + RCNN_loss_cls_2nd.mean() + RCNN_loss_bbox_2nd.mean() \
+                   + RCNN_loss_cls_3rd.mean() + RCNN_loss_bbox_3rd.mean()
             loss_temp += loss.data[0]
 
             # backward
@@ -387,6 +389,12 @@ if __name__ == '__main__':
                     loss_rpn_box = rpn_loss_box.mean().data[0]
                     loss_rcnn_cls = RCNN_loss_cls.mean().data[0]
                     loss_rcnn_box = RCNN_loss_bbox.mean().data[0]
+
+                    loss_rcnn_cls_2nd = RCNN_loss_cls_2nd.mean().data[0]
+                    loss_rcnn_box_2nd = RCNN_loss_bbox_2nd.mean().data[0]
+                    loss_rcnn_cls_3rd = RCNN_loss_cls_3rd.mean().data[0]
+                    loss_rcnn_box_3rd = RCNN_loss_bbox_3rd.mean().data[0]
+
                     fg_cnt = torch.sum(roi_labels.data.ne(0))
                     bg_cnt = roi_labels.data.numel() - fg_cnt
                 else:
@@ -394,14 +402,20 @@ if __name__ == '__main__':
                     loss_rpn_box = rpn_loss_box.data[0]
                     loss_rcnn_cls = RCNN_loss_cls.data[0]
                     loss_rcnn_box = RCNN_loss_bbox.data[0]
+
+                    loss_rcnn_cls_2nd = RCNN_loss_cls_2nd.data[0]
+                    loss_rcnn_box_2nd = RCNN_loss_bbox_2nd.data[0]
+                    loss_rcnn_cls_3rd = RCNN_loss_cls_3rd.data[0]
+                    loss_rcnn_box_3rd = RCNN_loss_bbox_3rd.data[0]
+
                     fg_cnt = torch.sum(roi_labels.data.ne(0))
                     bg_cnt = roi_labels.data.numel() - fg_cnt
 
                 _print("[session %d][epoch %2d][iter %4d/%4d] loss: %.4f, lr: %.2e" \
                        % (args.session, epoch, step, iters_per_epoch, loss_temp, lr), )
                 _print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt, bg_cnt, end - start), )
-                _print("\t\t\trpn_cls: %.4f, rpn_box: %.4f, rcnn_cls: %.4f, rcnn_box %.4f" \
-                       % (loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box), )
+                _print("\t\t\trpn_cls: %.4f, rpn_box: %.4f, rcnn_cls: %.4f, rcnn_box %.4f, rcnn_cls_2nd: %.4f, rcnn_box_2nd %.4f, rcnn_cls_3rd: %.4f, rcnn_box_3rd %.4f" \
+                       % (loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rcnn_cls_2nd, loss_rcnn_box_2nd, loss_rcnn_cls_3rd, loss_rcnn_box_3rd), )
                 if args.use_tfboard:
                     # info = {
                     #     'loss': loss_temp,
@@ -412,8 +426,8 @@ if __name__ == '__main__':
                     # }
                     # for tag, value in info.items():
                     #     logger.scalar_summary(tag, value, step)
-                    scalars = [loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box]
-                    names = ['loss', 'loss_rpn_cls', 'loss_rpn_box', 'loss_rcnn_cls', 'loss_rcnn_box']
+                    scalars = [loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rcnn_cls_2nd, loss_rcnn_box_2nd, loss_rcnn_cls_3rd, loss_rcnn_box_3rd]
+                    names = ['loss', 'loss_rpn_cls', 'loss_rpn_box', 'loss_rcnn_cls', 'loss_rcnn_box', 'loss_rcnn_cls_2nd', 'loss_rcnn_box_2nd', 'loss_rcnn_cls_3rd', 'loss_rcnn_box_3rd']
                     write_scalars(writer, scalars, names, iters_per_epoch * (epoch - 1) + step, tag='train_loss')
 
                 loss_temp = 0

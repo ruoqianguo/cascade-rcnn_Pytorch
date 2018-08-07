@@ -11,6 +11,36 @@
 import torch
 import numpy as np
 import pdb
+from model.utils.config import cfg
+
+
+def bbox_decode(rois, bbox_pred, batch_size, class_agnostic, classes, im_info, training):
+    boxes = rois.data[:, :, 1:5]
+    if cfg.TEST.BBOX_REG:
+        # Apply bounding-box regression deltas
+        box_deltas = bbox_pred.data
+        if cfg.TRAIN.BBOX_NORMALIZE_TARGETS_PRECOMPUTED:
+            # Optionally normalize targets by a precomputed mean and stdev
+            if class_agnostic or training:
+                box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_STDS).cuda() \
+                             + torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_MEANS).cuda()
+                box_deltas = box_deltas.view(batch_size, -1, 4)
+            else:
+                box_deltas = box_deltas.view(-1, 4) * torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_STDS).cuda() \
+                             + torch.FloatTensor(cfg.TRAIN.BBOX_NORMALIZE_MEANS).cuda()
+                box_deltas = box_deltas.view(batch_size, -1, 4 * classes)
+
+        pred_boxes = bbox_transform_inv(boxes, box_deltas, batch_size)
+        pred_boxes = clip_boxes(pred_boxes, im_info, batch_size)
+    else:
+        # Simply repeat the boxes, once for each class
+        pred_boxes = boxes
+    ret_boxes = pred_boxes.new(pred_boxes.size(0), pred_boxes.size(1), pred_boxes.size(2) + 1)
+    ret_boxes[:, :, 1:pred_boxes.size(2) + 1] = pred_boxes
+    for b in range(batch_size):
+        ret_boxes[b, :, 0] = b
+    return ret_boxes
+
 
 def bbox_transform(ex_rois, gt_rois):
     ex_widths = ex_rois[:, 2] - ex_rois[:, 0] + 1.0
