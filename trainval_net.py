@@ -9,31 +9,23 @@ from __future__ import division
 from __future__ import print_function
 
 import _init_paths
-import os
-import sys
 import numpy as np
 import argparse
 import pprint
 import pdb
 import time
-import logging
 
 import torch
 from torch.autograd import Variable
 import torch.nn as nn
-import torch.optim as optim
-from datetime import datetime
 
-import torchvision.transforms as transforms
 from torch.utils.data.sampler import Sampler
-from model.utils.net_utils import vis_detections
 from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import roibatchLoader
-from model.utils.config import cfg, cfg_from_file, cfg_from_list, get_output_dir
-from model.utils.net_utils import weights_normal_init, save_net, load_net, \
-    adjust_learning_rate, save_checkpoint, clip_gradient
-import cv2
-from model.fpn.detnet_backbone import detnet
+from model.utils.config import cfg, cfg_from_file, cfg_from_list
+from model.utils.net_utils import adjust_learning_rate, save_checkpoint
+from model.fpn.cascade.detnet_backbone import detnet as detnet_cascade
+from model.fpn.non_cascade.detnet_backbone import detnet as detnet_noncascade
 from tensorboardX import SummaryWriter
 from model.utils.summary import *
 import pdb
@@ -126,6 +118,7 @@ def parse_args():
     parser.add_argument('--use_tfboard', dest='use_tfboard',
                         help='whether use tensorflow tensorboard',
                         default=True, type=bool)
+    parser.add_argument('--cascade', help='whether use cascade structure', action='store_true')
 
     args = parser.parse_args()
     return args
@@ -178,9 +171,6 @@ if __name__ == '__main__':
         # logger = Logger('./logs')
         writer = SummaryWriter(comment=args.exp_name)
 
-    # logging.basicConfig(filename="logs/"+args.net+"_"+args.dataset+"_"+str(args.session)+".log",
-    #       filemode='w', level=logging.DEBUG)
-    # logging.info(str(datetime.now()))
 
     if args.dataset == "pascal_voc":
         args.imdb_name = "voc_2007_trainval"
@@ -285,11 +275,18 @@ if __name__ == '__main__':
         cfg.CUDA = True
 
     # initilize the network here.
-    if args.net == 'detnet59':
-        FPN = detnet(imdb.classes, 59, pretrained=True, class_agnostic=args.class_agnostic)
+    if args.cascade:
+        if args.net == 'detnet59':
+            FPN = detnet_cascade(imdb.classes, 59, pretrained=True, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
     else:
-        print("network is not defined")
-        pdb.set_trace()
+        if args.net == 'detnet59':
+            FPN = detnet_noncascade(imdb.classes, 59, pretrained=True, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
 
     FPN.create_architecture()
 
@@ -356,22 +353,21 @@ if __name__ == '__main__':
             num_boxes.data.resize_(data[3].size()).copy_(data[3])
 
             FPN.zero_grad()
-            # try:
-            _, _, _, rpn_loss_cls, rpn_loss_box, \
-            RCNN_loss_cls, RCNN_loss_bbox, RCNN_loss_cls_2nd, RCNN_loss_bbox_2nd, RCNN_loss_cls_3rd, RCNN_loss_bbox_3rd, \
-            roi_labels = FPN(im_data, im_info, gt_boxes, num_boxes)
-            # except:
-            #     print(data[4], gt_boxes, num_boxes)
-            #     img = (data[0].permute(0, 2, 3, 1)[0].numpy() + cfg.PIXEL_MEANS).astype(np.uint8).copy()
-            #
-            #     bbox = data[2][0].cpu().numpy()
-            #     im2show = vis_detections(img, 'anything', bbox, 0.0)
-            #     print(bbox)
+            if args.cascade:
+                _, _, _, rpn_loss_cls, rpn_loss_box, \
+                RCNN_loss_cls, RCNN_loss_bbox, RCNN_loss_cls_2nd, RCNN_loss_bbox_2nd, RCNN_loss_cls_3rd, RCNN_loss_bbox_3rd, \
+                roi_labels = FPN(im_data, im_info, gt_boxes, num_boxes)
 
-            loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
-                   + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean() \
-                   + RCNN_loss_cls_2nd.mean() + RCNN_loss_bbox_2nd.mean() \
-                   + RCNN_loss_cls_3rd.mean() + RCNN_loss_bbox_3rd.mean()
+                loss = rpn_loss_cls.mean() + rpn_loss_box.mean() \
+                       + RCNN_loss_cls.mean() + RCNN_loss_bbox.mean() \
+                       + RCNN_loss_cls_2nd.mean() + RCNN_loss_bbox_2nd.mean() \
+                       + RCNN_loss_cls_3rd.mean() + RCNN_loss_bbox_3rd.mean()
+            else:
+                _, _, _, rpn_loss_cls, rpn_loss_box, RCNN_loss_cls, RCNN_loss_bbox, \
+                roi_labels = FPN(im_data, im_info, gt_boxes, num_boxes)
+
+                loss = rpn_loss_cls.mean() + rpn_loss_box.mean()+ RCNN_loss_cls.mean() + RCNN_loss_bbox.mean()
+
             loss_temp += loss.data[0]
 
             # backward
@@ -390,10 +386,11 @@ if __name__ == '__main__':
                     loss_rcnn_cls = RCNN_loss_cls.mean().data[0]
                     loss_rcnn_box = RCNN_loss_bbox.mean().data[0]
 
-                    loss_rcnn_cls_2nd = RCNN_loss_cls_2nd.mean().data[0]
-                    loss_rcnn_box_2nd = RCNN_loss_bbox_2nd.mean().data[0]
-                    loss_rcnn_cls_3rd = RCNN_loss_cls_3rd.mean().data[0]
-                    loss_rcnn_box_3rd = RCNN_loss_bbox_3rd.mean().data[0]
+                    if args.cascade:
+                        loss_rcnn_cls_2nd = RCNN_loss_cls_2nd.mean().data[0]
+                        loss_rcnn_box_2nd = RCNN_loss_bbox_2nd.mean().data[0]
+                        loss_rcnn_cls_3rd = RCNN_loss_cls_3rd.mean().data[0]
+                        loss_rcnn_box_3rd = RCNN_loss_bbox_3rd.mean().data[0]
 
                     fg_cnt = torch.sum(roi_labels.data.ne(0))
                     bg_cnt = roi_labels.data.numel() - fg_cnt
@@ -403,10 +400,11 @@ if __name__ == '__main__':
                     loss_rcnn_cls = RCNN_loss_cls.data[0]
                     loss_rcnn_box = RCNN_loss_bbox.data[0]
 
-                    loss_rcnn_cls_2nd = RCNN_loss_cls_2nd.data[0]
-                    loss_rcnn_box_2nd = RCNN_loss_bbox_2nd.data[0]
-                    loss_rcnn_cls_3rd = RCNN_loss_cls_3rd.data[0]
-                    loss_rcnn_box_3rd = RCNN_loss_bbox_3rd.data[0]
+                    if args.cascade:
+                        loss_rcnn_cls_2nd = RCNN_loss_cls_2nd.data[0]
+                        loss_rcnn_box_2nd = RCNN_loss_bbox_2nd.data[0]
+                        loss_rcnn_cls_3rd = RCNN_loss_cls_3rd.data[0]
+                        loss_rcnn_box_3rd = RCNN_loss_bbox_3rd.data[0]
 
                     fg_cnt = torch.sum(roi_labels.data.ne(0))
                     bg_cnt = roi_labels.data.numel() - fg_cnt
@@ -414,20 +412,22 @@ if __name__ == '__main__':
                 _print("[session %d][epoch %2d][iter %4d/%4d] loss: %.4f, lr: %.2e" \
                        % (args.session, epoch, step, iters_per_epoch, loss_temp, lr), )
                 _print("\t\t\tfg/bg=(%d/%d), time cost: %f" % (fg_cnt, bg_cnt, end - start), )
-                _print("\t\t\trpn_cls: %.4f, rpn_box: %.4f, rcnn_cls: %.4f, rcnn_box %.4f, rcnn_cls_2nd: %.4f, rcnn_box_2nd %.4f, rcnn_cls_3rd: %.4f, rcnn_box_3rd %.4f" \
-                       % (loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rcnn_cls_2nd, loss_rcnn_box_2nd, loss_rcnn_cls_3rd, loss_rcnn_box_3rd), )
+
+                if args.cascade:
+                    _print("\t\t\trpn_cls: %.4f, rpn_box: %.4f, rcnn_cls: %.4f, rcnn_box %.4f, rcnn_cls_2nd: %.4f, "
+                           "rcnn_box_2nd %.4f, rcnn_cls_3rd: %.4f, rcnn_box_3rd %.4f" % (loss_rpn_cls, loss_rpn_box,
+                        loss_rcnn_cls, loss_rcnn_box, loss_rcnn_cls_2nd, loss_rcnn_box_2nd, loss_rcnn_cls_3rd, loss_rcnn_box_3rd), )
+                else:
+                    _print("\t\t\trpn_cls: %.4f, rpn_box: %.4f, rcnn_cls: %.4f, rcnn_box %.4f" \
+                            % (loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box), )
+
                 if args.use_tfboard:
-                    # info = {
-                    #     'loss': loss_temp,
-                    #     'loss_rpn_cls': loss_rpn_cls,
-                    #     'loss_rpn_box': loss_rpn_box,
-                    #     'loss_rcnn_cls': loss_rcnn_cls,
-                    #     'loss_rcnn_box': loss_rcnn_box,
-                    # }
-                    # for tag, value in info.items():
-                    #     logger.scalar_summary(tag, value, step)
-                    scalars = [loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rcnn_cls_2nd, loss_rcnn_box_2nd, loss_rcnn_cls_3rd, loss_rcnn_box_3rd]
-                    names = ['loss', 'loss_rpn_cls', 'loss_rpn_box', 'loss_rcnn_cls', 'loss_rcnn_box', 'loss_rcnn_cls_2nd', 'loss_rcnn_box_2nd', 'loss_rcnn_cls_3rd', 'loss_rcnn_box_3rd']
+                    if args.cascade:
+                        scalars = [loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box, loss_rcnn_cls_2nd, loss_rcnn_box_2nd, loss_rcnn_cls_3rd, loss_rcnn_box_3rd]
+                        names = ['loss', 'loss_rpn_cls', 'loss_rpn_box', 'loss_rcnn_cls', 'loss_rcnn_box', 'loss_rcnn_cls_2nd', 'loss_rcnn_box_2nd', 'loss_rcnn_cls_3rd', 'loss_rcnn_box_3rd']
+                    else:
+                        scalars = [loss_temp, loss_rpn_cls, loss_rpn_box, loss_rcnn_cls, loss_rcnn_box]
+                        names = ['loss', 'loss_rpn_cls', 'loss_rpn_box', 'loss_rcnn_cls', 'loss_rcnn_box']
                     write_scalars(writer, scalars, names, iters_per_epoch * (epoch - 1) + step, tag='train_loss')
 
                 loss_temp = 0

@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 
 from model.utils.config import cfg
-from model.fpn.fpn import _FPN
+from model.fpn.non_cascade.fpn import _FPN
 
 import torch
 import torch.nn as nn
@@ -333,19 +333,19 @@ class detnet(_FPN):
             nn.ReLU(True)
         )
 
-        self.RCNN_top_2nd = nn.Sequential(
-            nn.Conv2d(256, 1024, kernel_size=cfg.POOLING_SIZE, stride=cfg.POOLING_SIZE, padding=0),
-            nn.ReLU(True),
-            nn.Conv2d(1024, 1024, kernel_size=1, stride=1, padding=0),
-            nn.ReLU(True)
-        )
-
-        self.RCNN_top_3rd = nn.Sequential(
-            nn.Conv2d(256, 1024, kernel_size=cfg.POOLING_SIZE, stride=cfg.POOLING_SIZE, padding=0),
-            nn.ReLU(True),
-            nn.Conv2d(1024, 1024, kernel_size=1, stride=1, padding=0),
-            nn.ReLU(True)
-        )
+        # self.RCNN_top_2nd = nn.Sequential(
+        #     nn.Conv2d(256, 1024, kernel_size=cfg.POOLING_SIZE, stride=cfg.POOLING_SIZE, padding=0),
+        #     nn.ReLU(True),
+        #     nn.Conv2d(1024, 1024, kernel_size=1, stride=1, padding=0),
+        #     nn.ReLU(True)
+        # )
+        #
+        # self.RCNN_top_3rd = nn.Sequential(
+        #     nn.Conv2d(256, 1024, kernel_size=cfg.POOLING_SIZE, stride=cfg.POOLING_SIZE, padding=0),
+        #     nn.ReLU(True),
+        #     nn.Conv2d(1024, 1024, kernel_size=1, stride=1, padding=0),
+        #     nn.ReLU(True)
+        # )
 
         self.RCNN_cls_score = nn.Linear(1024, self.n_classes)
         if self.class_agnostic:
@@ -353,17 +353,17 @@ class detnet(_FPN):
         else:
             self.RCNN_bbox_pred = nn.Linear(1024, 4 * self.n_classes)
 
-        self.RCNN_cls_score_2nd = nn.Linear(1024, self.n_classes)
-        if self.class_agnostic:
-            self.RCNN_bbox_pred_2nd = nn.Linear(1024, 4)
-        else:
-            self.RCNN_bbox_pred_2nd = nn.Linear(1024, 4 * self.n_classes)
-
-        self.RCNN_cls_score_3rd = nn.Linear(1024, self.n_classes)
-        if self.class_agnostic:
-            self.RCNN_bbox_pred_3rd = nn.Linear(1024, 4)
-        else:
-            self.RCNN_bbox_pred_3rd = nn.Linear(1024, 4 * self.n_classes)
+        # self.RCNN_cls_score_2nd = nn.Linear(1024, self.n_classes)
+        # if self.class_agnostic:
+        #     self.RCNN_bbox_pred_2nd = nn.Linear(1024, 4)
+        # else:
+        #     self.RCNN_bbox_pred_2nd = nn.Linear(1024, 4 * self.n_classes)
+        #
+        # self.RCNN_cls_score_3rd = nn.Linear(1024, self.n_classes)
+        # if self.class_agnostic:
+        #     self.RCNN_bbox_pred_3rd = nn.Linear(1024, 4)
+        # else:
+        #     self.RCNN_bbox_pred_3rd = nn.Linear(1024, 4 * self.n_classes)
 
         # Fix blocks
         for p in self.RCNN_layer0[0].parameters(): p.requires_grad = False
@@ -428,12 +428,12 @@ class detnet(_FPN):
         fc7 = block5.mean(3).mean(2)
         return fc7
 
-    def _head_to_tail_2nd(self, pool5):
-        block5 = self.RCNN_top_2nd(pool5)
-        fc7 = block5.mean(3).mean(2)
-        return fc7
-
-    def _head_to_tail_3rd(self, pool5):
-        block5 = self.RCNN_top_3rd(pool5)
-        fc7 = block5.mean(3).mean(2)
-        return fc7
+    # def _head_to_tail_2nd(self, pool5):
+    #     block5 = self.RCNN_top_2nd(pool5)
+    #     fc7 = block5.mean(3).mean(2)
+    #     return fc7
+    #
+    # def _head_to_tail_3rd(self, pool5):
+    #     block5 = self.RCNN_top_3rd(pool5)
+    #     fc7 = block5.mean(3).mean(2)
+    #     return fc7

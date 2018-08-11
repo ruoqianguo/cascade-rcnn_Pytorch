@@ -3,15 +3,12 @@ from __future__ import division
 from __future__ import print_function
 
 from model.utils.config import cfg
-from model.fpn.fpn import _FPN
+from model.fpn.non_cascade.fpn import _FPN
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-from torch.autograd import Variable
 import math
 import torch.utils.model_zoo as model_zoo
-import pdb
 
 __all__ = ['ResNet', 'resnet18', 'resnet34', 'resnet50', 'resnet101',
        'resnet152']

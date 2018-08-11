@@ -15,7 +15,6 @@ from model.roi_crop.modules.roi_crop import _RoICrop
 from model.roi_align.modules.roi_align import RoIAlignAvg
 from model.rpn.proposal_target_layer import _ProposalTargetLayer
 from model.utils.net_utils import _smooth_l1_loss, _crop_pool_layer, _affine_grid_gen, _affine_theta
-from model.rpn.bbox_transform import bbox_transform_inv, clip_boxes, bbox_decode
 import time
 import pdb
 
@@ -64,8 +63,8 @@ class _FPN(nn.Module):
                 m.bias.data.fill_(0)
 
         normal_init(self.RCNN_toplayer, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        # normal_init(self.RCNN_smooth1, 0, 0.01, cfg.TRAIN.TRUNCATED)
-        # normal_init(self.RCNN_smooth2, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RCNN_smooth1, 0, 0.01, cfg.TRAIN.TRUNCATED)
+        normal_init(self.RCNN_smooth2, 0, 0.01, cfg.TRAIN.TRUNCATED)
         # normal_init(self.RCNN_smooth3, 0, 0.01, cfg.TRAIN.TRUNCATED)
         normal_init(self.RCNN_latlayer1, 0, 0.01, cfg.TRAIN.TRUNCATED)
         normal_init(self.RCNN_latlayer2, 0, 0.01, cfg.TRAIN.TRUNCATED)
@@ -257,7 +256,7 @@ class _FPN(nn.Module):
 
         # compute object classification probability
         cls_score = self.RCNN_cls_score(pooled_feat)
-        # cls_prob = F.softmax(cls_score)   ----------------not be used ---------------
+        cls_prob = F.softmax(cls_score)
 
         RCNN_loss_cls = 0
         RCNN_loss_bbox = 0
@@ -269,178 +268,10 @@ class _FPN(nn.Module):
             RCNN_loss_bbox = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
 
         rois = rois.view(batch_size, -1, rois.size(1))
-        # cls_prob = cls_prob.view(batch_size, -1, cls_prob.size(1))   ----------------not be used ---------------
+        cls_prob = cls_prob.view(batch_size, -1, cls_prob.size(1))
         bbox_pred = bbox_pred.view(batch_size, -1, bbox_pred.size(1))
 
         if self.training:
             rois_label = rois_label.view(batch_size, -1)
 
-        # 2nd-----------------------------
-        # decode
-        rois = bbox_decode(rois, bbox_pred, batch_size, self.class_agnostic, self.n_classes, im_info, self.training)
-
-        # proposal_target
-        if self.training:
-            roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes, stage=2)
-            rois, rois_label, gt_assign, rois_target, rois_inside_ws, rois_outside_ws = roi_data
-
-            rois = rois.view(-1, 5)
-            rois_label = rois_label.view(-1).long()
-            gt_assign = gt_assign.view(-1).long()
-            pos_id = rois_label.nonzero().squeeze()
-            gt_assign_pos = gt_assign[pos_id]
-            rois_label_pos = rois_label[pos_id]
-            rois_label_pos_ids = pos_id
-
-            rois_pos = Variable(rois[pos_id])
-            rois = Variable(rois)
-            rois_label = Variable(rois_label)
-
-            rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
-            rois_inside_ws = Variable(rois_inside_ws.view(-1, rois_inside_ws.size(2)))
-            rois_outside_ws = Variable(rois_outside_ws.view(-1, rois_outside_ws.size(2)))
-        else:
-            rois_label = None
-            gt_assign = None
-            rois_target = None
-            rois_inside_ws = None
-            rois_outside_ws = None
-            rpn_loss_cls = 0
-            rpn_loss_bbox = 0
-            rois = rois.view(-1, 5)
-            pos_id = torch.arange(0, rois.size(0)).long().type_as(rois).long()
-            rois_label_pos_ids = pos_id
-            rois_pos = Variable(rois[pos_id])
-            rois = Variable(rois)
-
-        roi_pool_feat = self._PyramidRoI_Feat(mrcnn_feature_maps, rois, im_info)
-
-        # feed pooled features to top model
-        pooled_feat = self._head_to_tail_2nd(roi_pool_feat)
-
-        # compute bbox offset
-        bbox_pred = self.RCNN_bbox_pred_2nd(pooled_feat)
-        if self.training and not self.class_agnostic:
-            # select the corresponding columns according to roi labels
-            bbox_pred_view = bbox_pred.view(bbox_pred.size(0), int(bbox_pred.size(1) / 4), 4)
-            bbox_pred_select = torch.gather(bbox_pred_view, 1,
-                                            rois_label.long().view(rois_label.size(0), 1, 1).expand(rois_label.size(0),
-                                                                                                    1, 4))
-            bbox_pred = bbox_pred_select.squeeze(1)
-
-        # compute object classification probability
-        cls_score = self.RCNN_cls_score_2nd(pooled_feat)
-        # cls_prob_2nd = F.softmax(cls_score) ----------------not be used ---------------
-
-        RCNN_loss_cls_2nd = 0
-        RCNN_loss_bbox_2nd = 0
-
-        if self.training:
-            # loss (cross entropy) for object classification
-            RCNN_loss_cls_2nd = F.cross_entropy(cls_score, rois_label)
-            # loss (l1-norm) for bounding box regression
-            RCNN_loss_bbox_2nd = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
-
-        rois = rois.view(batch_size, -1, rois.size(1))
-        # cls_prob_2nd = cls_prob_2nd.view(batch_size, -1, cls_prob_2nd.size(1))  ----------------not be used ---------
-        bbox_pred_2nd = bbox_pred.view(batch_size, -1, bbox_pred.size(1))
-
-        if self.training:
-            rois_label = rois_label.view(batch_size, -1)
-
-        # 3rd---------------
-        # decode
-        rois = bbox_decode(rois, bbox_pred_2nd, batch_size, self.class_agnostic, self.n_classes, im_info, self.training)
-
-        # proposal_target
-        # if it is training phrase, then use ground trubut bboxes for refining
-        if self.training:
-            roi_data = self.RCNN_proposal_target(rois, gt_boxes, num_boxes, stage=3)
-            rois, rois_label, gt_assign, rois_target, rois_inside_ws, rois_outside_ws = roi_data
-
-            rois = rois.view(-1, 5)
-            rois_label = rois_label.view(-1).long()
-            gt_assign = gt_assign.view(-1).long()
-            pos_id = rois_label.nonzero().squeeze()
-            gt_assign_pos = gt_assign[pos_id]
-            rois_label_pos = rois_label[pos_id]
-            rois_label_pos_ids = pos_id
-
-            rois_pos = Variable(rois[pos_id])
-            rois = Variable(rois)
-            rois_label = Variable(rois_label)
-
-            rois_target = Variable(rois_target.view(-1, rois_target.size(2)))
-            rois_inside_ws = Variable(rois_inside_ws.view(-1, rois_inside_ws.size(2)))
-            rois_outside_ws = Variable(rois_outside_ws.view(-1, rois_outside_ws.size(2)))
-        else:
-
-            rois_label = None
-            gt_assign = None
-            rois_target = None
-            rois_inside_ws = None
-            rois_outside_ws = None
-            rpn_loss_cls = 0
-            rpn_loss_bbox = 0
-            rois = rois.view(-1, 5)
-            pos_id = torch.arange(0, rois.size(0)).long().type_as(rois).long()
-            rois_label_pos_ids = pos_id
-            rois_pos = Variable(rois[pos_id])
-            rois = Variable(rois)
-
-        roi_pool_feat = self._PyramidRoI_Feat(mrcnn_feature_maps, rois, im_info)
-
-        # feed pooled features to top model
-        pooled_feat = self._head_to_tail_3rd(roi_pool_feat)
-
-        # compute bbox offset
-        bbox_pred = self.RCNN_bbox_pred_3rd(pooled_feat)
-        if self.training and not self.class_agnostic:
-            # select the corresponding columns according to roi labels
-            bbox_pred_view = bbox_pred.view(bbox_pred.size(0), int(bbox_pred.size(1) / 4), 4)
-            bbox_pred_select = torch.gather(bbox_pred_view, 1,
-                                            rois_label.long().view(rois_label.size(0), 1, 1).expand(
-                                                rois_label.size(0),
-                                                1, 4))
-            bbox_pred = bbox_pred_select.squeeze(1)
-
-        # compute object classification probability
-        cls_score = self.RCNN_cls_score_3rd(pooled_feat)
-        cls_prob_3rd = F.softmax(cls_score)
-
-        RCNN_loss_cls_3rd = 0
-        RCNN_loss_bbox_3rd = 0
-
-        if self.training:
-            # loss (cross entropy) for object classification
-            RCNN_loss_cls_3rd = F.cross_entropy(cls_score, rois_label)
-            # loss (l1-norm) for bounding box regression
-            RCNN_loss_bbox_3rd = _smooth_l1_loss(bbox_pred, rois_target, rois_inside_ws, rois_outside_ws)
-
-        rois = rois.view(batch_size, -1, rois.size(1))
-        cls_prob_3rd = cls_prob_3rd.view(batch_size, -1, cls_prob_3rd.size(1))
-        bbox_pred_3rd = bbox_pred.view(batch_size, -1, bbox_pred.size(1))
-
-        if self.training:
-            rois_label = rois_label.view(batch_size, -1)
-
-        if not self.training:
-            # 3rd_avg
-            # 1st_3rd
-            pooled_feat_1st_3rd = self._head_to_tail(roi_pool_feat)
-            cls_score_1st_3rd = self.RCNN_cls_score(pooled_feat_1st_3rd)
-            cls_prob_1st_3rd = F.softmax(cls_score_1st_3rd)
-            cls_prob_1st_3rd = cls_prob_1st_3rd.view(batch_size, -1, cls_prob_1st_3rd.size(1))
-
-            # 2nd_3rd
-            pooled_feat_2nd_3rd = self._head_to_tail_2nd(roi_pool_feat)
-            cls_score_2nd_3rd = self.RCNN_cls_score_2nd(pooled_feat_2nd_3rd)
-            cls_prob_2nd_3rd = F.softmax(cls_score_2nd_3rd)
-            cls_prob_2nd_3rd = cls_prob_2nd_3rd.view(batch_size, -1, cls_prob_2nd_3rd.size(1))
-
-            cls_prob_3rd_avg = (cls_prob_1st_3rd + cls_prob_2nd_3rd + cls_prob_3rd) / 3
-        else:
-            cls_prob_3rd_avg = 0.0
-
-
-        return rois, cls_prob_3rd_avg, bbox_pred_3rd, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, RCNN_loss_cls_2nd, RCNN_loss_bbox_2nd, RCNN_loss_cls_3rd, RCNN_loss_bbox_3rd, rois_label
+        return rois, cls_prob, bbox_pred, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, rois_label

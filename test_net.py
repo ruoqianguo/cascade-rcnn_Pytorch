@@ -19,8 +19,6 @@ import cv2
 import pickle
 import torch
 from torch.autograd import Variable
-import torch.nn as nn
-import torch.optim as optim
 
 from roi_data_layer.roidb import combined_roidb
 from roi_data_layer.roibatchLoader import roibatchLoader
@@ -29,7 +27,8 @@ from model.rpn.bbox_transform import clip_boxes
 from model.nms.nms_wrapper import nms, soft_nms
 from model.rpn.bbox_transform import bbox_transform_inv
 from model.utils.net_utils import vis_detections
-from model.fpn.detnet_backbone import detnet
+from model.fpn.cascade.detnet_backbone import detnet as detnet_cascade
+from model.fpn.non_cascade.detnet_backbone import detnet as detnet_noncascade
 
 import pdb
 
@@ -91,6 +90,7 @@ def parse_args():
                         help='visualization mode',
                         action='store_true')
     parser.add_argument('--soft_nms', help='whether use soft nms', action='store_true')
+    parser.add_argument('--cascade', help='whether use soft nms', action='store_true')
     args = parser.parse_args()
     return args
 
@@ -159,11 +159,18 @@ if __name__ == '__main__':
                              'fpn_{}_{}_{}.pth'.format(args.checksession, args.checkepoch, args.checkpoint))
 
     # initilize the network here.
-    if args.net == 'detnet59':
-        fpn = detnet(imdb.classes, 59, pretrained=False, class_agnostic=args.class_agnostic)
+    if args.cascade:
+        if args.net == 'detnet59':
+            fpn = detnet_cascade(imdb.classes, 59, pretrained=False, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
     else:
-        print("network is not defined")
-        pdb.set_trace()
+        if args.net == 'detnet59':
+            fpn = detnet_noncascade(imdb.classes, 59, pretrained=False, class_agnostic=args.class_agnostic)
+        else:
+            print("network is not defined")
+            pdb.set_trace()
 
     fpn.create_architecture()
 
@@ -235,8 +242,8 @@ if __name__ == '__main__':
         num_boxes.data.resize_(data[3].size()).copy_(data[3])
 
         det_tic = time.time()
-        rois, cls_prob, bbox_pred, \
-        _, _, _, _, _, _, _, _, _ = fpn(im_data, im_info, gt_boxes, num_boxes)
+        ret = fpn(im_data, im_info, gt_boxes, num_boxes)
+        rois, cls_prob, bbox_pred = ret[0:3]
 
         scores = cls_prob.data
         boxes = rois.data[:, :, 1:5]
@@ -326,7 +333,7 @@ if __name__ == '__main__':
 
     print('Evaluating detections')
     results = []
-    overthresh = [0.5, 0.6, 0.7, 0.8, 0.9]
+    overthresh = np.arange(0.5, 1.0, 0.05)
     for t in overthresh:
         mAP = imdb.evaluate_detections(all_boxes, output_dir, t)
         results.append(mAP)
