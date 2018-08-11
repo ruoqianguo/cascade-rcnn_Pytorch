@@ -1,55 +1,41 @@
-An implementation of [DetNet: A Backbone network for Object Detection](https://arxiv.org/abs/1804.06215). Due to the short time, I only trained and tested on pascal voc dataset. It proved that the performance of detnet59 is indeed better than FPN101. 
+An implementation of [Cascade R-CNN: Delving into High Quality Object Detection](https://arxiv.org/abs/1712.00726). I only trained and tested on pascal voc dataset. The source code is [here](https://github.com/zhaoweicai/cascade-rcnn) which implemented by caffe and also evalated on pascal voc.
 
 ## Introduction
 
-Firstly, I spent about one week training detnet59 on the ImageNet dataset .The classification  performance  of detnet59 is a little better than the original resnet50. Then i used the pretrained detnet59 to train and test on pascal voc.
+As we all know,  the cascade structure is designed for R-CNN structure, so i just used the cascade structure based on [DetNet](https://arxiv.org/abs/1804.06215) to train and test on pascal voc dataset (DetNet is not only faster than fpn-resnet101, but also better than fpn-resnet101).
 
-Based on [**FPN_Pytorch**](https://github.com/guoruoqian/FPN_Pytorch/), i change FPN101 to detnet59.
-
-**Update**
-
-**Adding soft_nms.**  **Without requiring any re-training of existing models.** You only need to use soft_nms during testing to bring performance improvements. 
+Based on [**DetNet_Pytorch**](https://github.com/guoruoqian/DetNet_pytorch), i mainly changed the forward function in fpn.py. It‘s just a naive implementation, so its speed is not fast. 
 
 ## Benchmarking
 
 I benchmark this code thoroughly on pascal voc2007 and 07+12. Below are the results:
 
-0). ImageNet(test on validation dataset)
-
-| backbone                       | Top1 error |
-| ------------------------------ | ---------- |
-| pytorch resnet50               | 23.9       |
-| detnet59 in this code          | 23.8       |
-| detnet59 in the original paper | 23.5       |
-
 1). PASCAL VOC 2007 (Train/Test: 07trainval/07test, scale=600, ROI Align)
 
-| model（FPN）                                                 | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | mAP  |
-| ------------------------------------------------------------ | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- |
-| ResNet-101                                                   | 1 GTX 1080 (Ti) | 2          | 1e-3 | 10       | 12        | 1.44hr      | 6137MB     | 75.7 |
-| [DetNet59](https://www.dropbox.com/home/DetNet/PASCAL%20VOC%202007?preview=fpn_1_8_5010.pth) | 1 GTX 1080 (Ti) | 2          | 1e-3 | 10       | 12        | 1.07hr      | 5412MB     | 75.9 |
+| model（FPN）     | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | AP   | AP50 | AP75 |
+| ---------------- | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- | ---- | ---- |
+| DetNet59         | 1 GTX 1080 (Ti) | 2          | 1e-3 | 10       | 12        | 0.89hr      | 6137MB     | 44.8 | 76.1 | 46.2 |
+| DetNet59-Cascade | 1 GTX 1080 (Ti) | 2          | 1e-3 | 10       | 12        | 1.62hr      | 6629MB     | 48.9 | 75.9 | 53.0 |
 
 2). PASCAL VOC 07+12 (Train/Test: 07+12trainval/07test, scale=600, ROI Align)
 
-| model（FPN）                                                 | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | mAP  |
-| ------------------------------------------------------------ | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- |
-| ResNet-101                                                   | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 3.96hr      | 9011MB     | 80.5 |
-| [DetNet59](https://www.dropbox.com/home/DetNet/PASCAL%20VOC%2007%2B12?preview=fpn_1_7_33101.pth) | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 2.33hr      | 8015MB     | 80.7 |
-| ResNet-101(**using soft_nms when testing**)                  | 1 GTX 1080 (Ti) | \          | \    | \        | \         | \           | \          | 81.2 |
-| DetNet59(**using soft_nms when testing**)                    | 1 GTX 1080 (Ti) | \          | \    | \        | \         | \           | \          | 81.6 |
+| model（FPN）     | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | AP   | AP50 | AP75 |
+| ---------------- | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- | ---- | ---- |
+| DetNet59         | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 2.41hr      | 9511MB     | 53.0 | 80.7 | 58.2 |
+| DetNet59-Cascade | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 4.60hr      | 1073MB     | 55.6 | 80.1 | 61.0 |
 
 ## Preparation
 
 First of all, clone the code
 
 ```
-git clone https://github.com/guoruoqian/DetNet_Pytorch.git
+git clone https://github.com/guoruoqian/cascade-rcnn_Pytorch.git
 ```
 
 Then, create a folder:
 
 ```shell
-cd DetNet_Pytorch && mkdir data
+cd cascade-rcnn_Pytorch && mkdir data
 ```
 
 ### prerequisites
@@ -101,31 +87,24 @@ It will compile all the modules you need, including NMS, ROI_Pooing, ROI_Align a
 
 ## Usage
 
-train voc2007:
+If you want to use cascade structure, you must set  `--cascade`  and  `--cag` in the below script. `cag` determine whether perform class_agnostic bbox regression. 
+
+train voc2007 use cascade structure:
 
 ```shell
-CUDA_VISIBLE_DEVICES=3 python3 trainval_net.py exp_name --dataset pascal_voc --net detnet59 --bs 2 --nw 4 --lr 1e-3 --epochs 12 --save_dir weights --cuda --use_tfboard True
+CUDA_VISIBLE_DEVICES=3 python3 trainval_net.py exp_name --dataset pascal_voc --net detnet59 --bs 2 --nw 4 --lr 1e-3 --epochs 12 --save_dir weights --cuda --use_tfboard True --cag --cascade
 ```
 
 test voc2007:
 
 ```shell
-CUDA_VISIBLE_DEVICES=3 python3 test_net.py exp_name --dataset pascal_voc --net detnet59 --checksession 1 --checkepoch 7 --checkpoint 5010 --cuda --load_dir weights
+CUDA_VISIBLE_DEVICES=3 python3 test_net.py exp_name --dataset pascal_voc --net detnet59 --checksession 1 --checkepoch 7 --checkpoint 5010 --cuda --load_dir weights --cag --cascade
 ```
 
-**using soft_nms when testing**:
-
-```shell
-CUDA_VISIBLE_DEVICES=3 python3 test_net.py exp_name --dataset pascal_voc --net detnet59 --checksession 1 --checkepoch 7 --checkpoint 5010 --cuda --load_dir weights --soft_nms
-```
-
-Before training voc07+12, you can must set ASPECT_CROPPING in detnet59.yml False, or you will encounter some error during the training. 
+Before training voc07+12, you must set ASPECT_CROPPING in detnet59.yml False, or you will encounter some error during the training. 
 
 train voc07+12:
 
 ```shell
-CUDA_VISIBLE_DEVICES=3 python3 trainval_net.py exp_name2 --dataset pascal_voc_0712 --net detnet59 --bs 1 --nw 4 --lr 1e-3 --epochs 12 --save_dir weights --cuda --use_tfboard True
+CUDA_VISIBLE_DEVICES=3 python3 trainval_net.py exp_name2 --dataset pascal_voc_0712 --net detnet59 --bs 1 --nw 4 --lr 1e-3 --epochs 12 --save_dir weights --cuda --use_tfboard True --cag --cascade
 ```
-### TODO
-
-- Train and test on COCO
