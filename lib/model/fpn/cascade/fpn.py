@@ -440,7 +440,7 @@ class _FPN(nn.Module):
 
             cls_prob_3rd_avg = (cls_prob_1st_3rd + cls_prob_2nd_3rd + cls_prob_3rd) / 3
         else:
-            cls_prob_3rd_avg = 0.0
+            cls_prob_3rd_avg = cls_prob_3rd
 
 
         return rois, cls_prob_3rd_avg, bbox_pred_3rd, rpn_loss_cls, rpn_loss_bbox, RCNN_loss_cls, RCNN_loss_bbox, RCNN_loss_cls_2nd, RCNN_loss_bbox_2nd, RCNN_loss_cls_3rd, RCNN_loss_bbox_3rd, rois_label
