@@ -54,7 +54,7 @@ cd cascade-rcnn_Pytorch && mkdir data
 
  You can download the detnet59 model which i trained on ImageNet from:
 
-- detnet59: [dropbox](https://www.dropbox.com/home/DetNet?preview=detnet59.pth)，[baiduyun](https://pan.baidu.com/s/14_ztsAKcrZGb4nnm8aCMyQ)
+- detnet59: [dropbox](https://www.dropbox.com/home/DetNet?preview=detnet59.pth)，[baiduyun](https://pan.baidu.com/s/14_ztsAKcrZGb4nnm8aCMyQ)，[google drive](https://drive.google.com/open?id=1kKgjhpdb5ruoGkpZuEQ-ZIZkbxMtWZIQ)
 
  Download it and put it into the data/pretrained_model/. 
 
