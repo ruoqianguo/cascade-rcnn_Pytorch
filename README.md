@@ -6,6 +6,13 @@ As we all know,  the cascade structure is designed for R-CNN structure, so i jus
 
 Based on [**DetNet_Pytorch**](https://github.com/guoruoqian/DetNet_pytorch), i mainly changed the forward function in fpn.py. It‘s just a naive implementation, so its speed is not fast. 
 
+## Update
+
+**2019/01/01:** 
+
+- [x] Fix bugs in demo, now you can run demo.py file. **Note the default demo.py merely support pascal_voc categories.**  You need to change the ```pascal_classes``` in demo.py to adapt your own dataset. If you want to know more details, please see the **usage** part.
+- [x] upload the pretrained DetNet59-Cascade which in below table. 
+
 ## Benchmarking
 
 I benchmark this code thoroughly on pascal voc2007 and 07+12. Below are the results:
@@ -19,10 +26,10 @@ I benchmark this code thoroughly on pascal voc2007 and 07+12. Below are the resu
 
 2). PASCAL VOC 07+12 (Train/Test: 07+12trainval/07test, scale=600, ROI Align)
 
-| model（FPN）     | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | AP   | AP50 | AP75 |
-| ---------------- | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- | ---- | ---- |
-| DetNet59         | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 2.41hr      | 9511MB     | 53.0 | 80.7 | 58.2 |
-| DetNet59-Cascade | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 4.60hr      | 1073MB     | 55.6 | 80.1 | 61.0 |
+| model（FPN）                                                 | GPUs            | Batch Size | lr   | lr_decay | max_epoch | Speed/epoch | Memory/GPU | AP   | AP50 | AP75 |
+| ------------------------------------------------------------ | --------------- | ---------- | ---- | -------- | --------- | ----------- | ---------- | ---- | ---- | ---- |
+| DetNet59                                                     | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 2.41hr      | 9511MB     | 53.0 | 80.7 | 58.2 |
+| [DetNet59-Cascade](https://drive.google.com/open?id=1AUBe1oIwCMVai2cIPIlZx-EgEtvMSYs-) | 1 GTX 1080 (Ti) | 1          | 1e-3 | 10       | 12        | 4.60hr      | 1073MB     | 55.6 | 80.1 | 61.0 |
 
 ## Preparation
 
@@ -108,3 +115,11 @@ train voc07+12:
 ```shell
 CUDA_VISIBLE_DEVICES=3 python3 trainval_net.py exp_name2 --dataset pascal_voc_0712 --net detnet59 --bs 1 --nw 4 --lr 1e-3 --epochs 12 --save_dir weights --cuda --use_tfboard True --cag --cascade
 ```
+run demo.py :
+
+Before run demo, you must make dictionary 'demo_images' and put images (VOC images) in it. You can download the pretrained model  listed in above tables.  
+
+```shell
+CUDA_VISIBLE_DEVICES=3 python3 demo.py exp_name2 --dataset pascal_voc_0712 --net detnet59 --checksession 1 --checkepoch 8 --checkpoint 33101 --cuda --load_dir weights --cag --image_dir demo_images --cascade --result_dir vis_cascade
+```
+
